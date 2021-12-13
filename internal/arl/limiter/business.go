@@ -21,7 +21,7 @@ const (
 type Service interface {
 	Inc(ctx context.Context, key string) error
 	// Count return count of requests for segment can throw `UnknownSegment`
-	Count(ctx context.Context, key string, seg Segment) (uint64, error)
+	Count(ctx context.Context, key string, seg Segment) (uint32, error)
 }
 
 type ServiceImpl struct {
@@ -33,12 +33,23 @@ func (s *ServiceImpl) Inc(ctx context.Context, key string) error {
 
 	ts := time.Now().UTC().Unix()
 
-	// TODO: Check whenever the key in LRU and update LRU
+	if err := s.lru.Inc(ctx, key, ts); err != nil {
+		return err
+	}
 
-	return s.permanent.Inc(ctx, key, ts)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		defer cancel()
+
+		if err := s.permanent.Inc(ctx, key, ts); err != nil {
+			//TODO: log extra info
+		}
+	}()
+
+	return nil
 }
 
-func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint64, error) {
+func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint32, error) {
 	switch seg {
 	case Second:
 		ts := time.Now().UTC().Unix()

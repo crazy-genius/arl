@@ -46,21 +46,9 @@ func (j *JsonOverHTTP) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func rateLimitHandler(key string, r *http.Request, w http.ResponseWriter, srv Service) {
-	var cnt uint64
-	cnt, err := srv.Count(r.Context(), key, Hour)
-	if err != nil {
-		cnt = 0
-	}
+	var cnt uint32
 
-	if cnt > 10 {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("{\"message\": \"hour limit exceeded\"}")); err != nil {
-			//TODO: write extra log
-		}
-		return
-	}
-
-	cnt, err = srv.Count(r.Context(), key, Second)
+	cnt, err := srv.Count(r.Context(), key, Second)
 	if err != nil {
 		cnt = 0
 	}
@@ -68,6 +56,19 @@ func rateLimitHandler(key string, r *http.Request, w http.ResponseWriter, srv Se
 	if cnt > 10 {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("{\"message\": \"seconds limit exceeded\"}")); err != nil {
+			//TODO: write extra log
+		}
+		return
+	}
+
+	cnt, err = srv.Count(r.Context(), key, Hour)
+	if err != nil {
+		cnt = 0
+	}
+
+	if cnt > 10 {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("{\"message\": \"hour limit exceeded\"}")); err != nil {
 			//TODO: write extra log
 		}
 		return
