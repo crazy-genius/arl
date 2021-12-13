@@ -21,7 +21,7 @@ const (
 type Service interface {
 	Inc(ctx context.Context, key string) error
 	// Count return count of requests for segment can throw `UnknownSegment`
-	Count(ctx context.Context, key string, seg Segment) (uint8, error)
+	Count(ctx context.Context, key string, seg Segment) (uint64, error)
 }
 
 type ServiceImpl struct {
@@ -38,7 +38,7 @@ func (s *ServiceImpl) Inc(ctx context.Context, key string) error {
 	return s.permanent.Inc(ctx, key, ts)
 }
 
-func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint8, error) {
+func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint64, error) {
 	switch seg {
 	case Second:
 		ts := time.Now().UTC().Unix()

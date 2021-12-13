@@ -46,7 +46,7 @@ func (j *JsonOverHTTP) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func rateLimitHandler(key string, r *http.Request, w http.ResponseWriter, srv Service) {
-	var cnt uint8
+	var cnt uint64
 	cnt, err := srv.Count(r.Context(), key, Hour)
 	if err != nil {
 		cnt = 0

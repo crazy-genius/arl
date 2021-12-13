@@ -3,7 +3,10 @@ package limiter
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
+
+	rc "github.com/go-redis/redis/v8"
 )
 
 // CounterNotFound accrued when no counter found in storage
@@ -14,15 +17,15 @@ type Storage interface {
 	// Inc increments storage for provided key => timestamp
 	Inc(ctx context.Context, key string, ts int64) error
 	// Count receive counter for provided key => timestamp can throw `CounterNotFound`
-	Count(ctx context.Context, key string, ts int64) (uint8, error)
+	Count(ctx context.Context, key string, ts int64) (uint64, error)
 	// CountAll receive sum of all counters for provided key can throw `CounterNotFound`
-	CountAll(ctx context.Context, key string) (uint8, error)
+	CountAll(ctx context.Context, key string) (uint64, error)
 }
 
 // Memory represents Last Recently Use data and holds staff in memory
 type Memory struct {
 	lock  sync.RWMutex
-	cache map[string]map[int64]uint8
+	cache map[string]map[int64]uint64
 }
 
 func (l *Memory) Inc(_ context.Context, key string, ts int64) error {
@@ -32,7 +35,7 @@ func (l *Memory) Inc(_ context.Context, key string, ts int64) error {
 	_, ok := l.cache[key]
 
 	if !ok {
-		l.cache[key] = map[int64]uint8{
+		l.cache[key] = map[int64]uint64{
 			ts: 1,
 		}
 		return nil
@@ -47,7 +50,7 @@ func (l *Memory) Inc(_ context.Context, key string, ts int64) error {
 	return nil
 }
 
-func (l *Memory) Count(_ context.Context, key string, ts int64) (uint8, error) {
+func (l *Memory) Count(_ context.Context, key string, ts int64) (uint64, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
@@ -63,7 +66,7 @@ func (l *Memory) Count(_ context.Context, key string, ts int64) (uint8, error) {
 	return 0, CounterNotFound
 }
 
-func (l *Memory) CountAll(_ context.Context, key string) (uint8, error) {
+func (l *Memory) CountAll(_ context.Context, key string) (uint64, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
@@ -72,7 +75,7 @@ func (l *Memory) CountAll(_ context.Context, key string) (uint8, error) {
 		return 0, CounterNotFound
 	}
 
-	var cnt uint8
+	var cnt uint64
 	for _, counter := range val {
 		cnt += counter
 	}
@@ -83,29 +86,55 @@ func (l *Memory) CountAll(_ context.Context, key string) (uint8, error) {
 // NewInMemoryStorage create new instance of Memory
 func NewInMemoryStorage() *Memory {
 	return &Memory{
-		cache: map[string]map[int64]uint8{},
+		cache: map[string]map[int64]uint64{},
 	}
 }
 
 type Redis struct {
+	client rc.UniversalClient
 }
 
 func (r *Redis) Inc(ctx context.Context, key string, ts int64) error {
-	//TODO implement me
-	panic("implement me")
+
+	exists := r.client.Exists(ctx, key).Val() == 1
+
+	if err := r.client.HIncrBy(ctx, key, strconv.FormatInt(ts, 10), 1).Err(); err != nil {
+		return err
+	}
+
+	if !exists {
+		if err := r.client.Expire(ctx, key, 0).Err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (r *Redis) Count(ctx context.Context, key string, ts int64) (uint8, error) {
-	//TODO implement me
-	panic("implement me")
+func (r *Redis) Count(ctx context.Context, key string, ts int64) (uint64, error) {
+	cmd := r.client.HGet(ctx, key, strconv.FormatInt(ts, 10))
+
+	if err := cmd.Err(); err != nil {
+		return 0, err
+	}
+
+	val, err := cmd.Uint64()
+	if err != nil {
+		return 0, err
+	}
+
+	return val, nil
 }
 
-func (r *Redis) CountAll(ctx context.Context, key string) (uint8, error) {
+func (r *Redis) CountAll(ctx context.Context, key string) (uint64, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
 // NewRedisStorage create new instance of Redis
-func NewRedisStorage() *Redis {
-	return &Redis{}
+func NewRedisStorage(client rc.UniversalClient) *Redis {
+
+	return &Redis{
+		client: client,
+	}
 }

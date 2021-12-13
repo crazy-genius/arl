@@ -4,6 +4,7 @@ import (
 	"arl/internal/arl/api"
 	"arl/internal/arl/limiter"
 	"context"
+	"github.com/go-redis/redis/v8"
 	"log"
 	"net/http"
 	"os"
@@ -28,8 +29,12 @@ func main() {
 	}()
 
 	lru := limiter.NewInMemoryStorage()
-	//db := limiter.NewRedisStorage()
-	limitSrv := limiter.NewService(lru, lru)
+	db := limiter.NewRedisStorage(redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}))
+	limitSrv := limiter.NewService(lru, db)
 	acc := limiter.NewJsonOverHttp(limitSrv)
 
 	mux := http.NewServeMux()
