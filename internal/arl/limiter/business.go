@@ -6,29 +6,33 @@ import (
 	"time"
 )
 
-// UnknownSegment accrued when unknown segment provided
-var UnknownSegment = errors.New("unknown segment")
+// ErrUnknownSegment accrued when unknown segment provided
+var ErrUnknownSegment = errors.New("unknown segment")
 
 // Segment represents a timespan segment
 type Segment byte
 
 const (
+	// Second is Segment size of Second
 	Second Segment = iota
+	// Hour is Segment size of Hour
 	Hour
 )
 
 // Service describe rate limiter service contract
 type Service interface {
 	Inc(ctx context.Context, key string) error
-	// Count return count of requests for segment can throw `UnknownSegment`
+	// Count return count of requests for segment can throw `ErrUnknownSegment`
 	Count(ctx context.Context, key string, seg Segment) (uint32, error)
 }
 
+// ServiceImpl arl service implementation
 type ServiceImpl struct {
 	lru       Storage
 	permanent Storage
 }
 
+// Inc increments api calls counter
 func (s *ServiceImpl) Inc(ctx context.Context, key string) error {
 
 	ts := time.Now().UTC().Unix()
@@ -49,6 +53,7 @@ func (s *ServiceImpl) Inc(ctx context.Context, key string) error {
 	return nil
 }
 
+// Count return api calls counter for provided key and segment
 func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint32, error) {
 	switch seg {
 	case Second:
@@ -68,7 +73,7 @@ func (s *ServiceImpl) Count(ctx context.Context, key string, seg Segment) (uint3
 		return cnt, nil
 	}
 
-	return 0, UnknownSegment
+	return 0, ErrUnknownSegment
 }
 
 // NewService instantiate new ServiceImpl instance

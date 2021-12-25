@@ -28,19 +28,19 @@ func main() {
 		}
 	}()
 
-	lru := limiter.NewInMemoryStorage()
+	lru := limiter.NewInMemoryStorage(ctx)
 	db := limiter.NewRedisStorage(redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}))
 	limitSrv := limiter.NewService(lru, db)
-	acc := limiter.NewJsonOverHttp(limitSrv)
+	acc := limiter.NewJSONOverHTTP(limitSrv)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", acc)
 
-	if err := api.Serve(mux, ctx); err != nil {
+	if err := api.Serve(ctx, mux); err != nil {
 		log.Printf("failed to serve:+%v\n", err)
 	}
 }

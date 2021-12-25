@@ -6,15 +6,17 @@ import (
 	"net/http"
 )
 
-type JsonOverHTTP struct {
+// JSONOverHTTP represent entry point from api to our service
+type JSONOverHTTP struct {
 	router *http.ServeMux
 	srv    Service
 }
 
-func NewJsonOverHttp(srv Service) *JsonOverHTTP {
+// NewJSONOverHTTP create new instance of JSONOverHTTP
+func NewJSONOverHTTP(srv Service) *JSONOverHTTP {
 	mux := http.NewServeMux()
 
-	joh := &JsonOverHTTP{
+	joh := &JSONOverHTTP{
 		srv:    srv,
 		router: mux,
 	}
@@ -24,7 +26,7 @@ func NewJsonOverHttp(srv Service) *JsonOverHTTP {
 	return joh
 }
 
-func (j *JsonOverHTTP) handle(w http.ResponseWriter, r *http.Request) {
+func (j *JSONOverHTTP) handle(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Query().Get("key")
 
 	if len(key) == 0 {
@@ -94,6 +96,6 @@ func updateLimitHandler(key string, r *http.Request, w http.ResponseWriter, srv 
 	}
 }
 
-func (j *JsonOverHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (j *JSONOverHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	j.router.ServeHTTP(w, r)
 }

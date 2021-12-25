@@ -10,7 +10,7 @@ import (
 )
 
 // Serve start http server
-func Serve(mux *http.ServeMux, ctx context.Context) (err error) {
+func Serve(ctx context.Context, mux *http.ServeMux) (err error) {
 
 	var port string
 	if port = os.Getenv("port"); port == "" {
